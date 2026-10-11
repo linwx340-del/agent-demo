@@ -1,4 +1,7 @@
 venv/
 key.txt
+.env
 __pycache__/
 *.pyc
+
+.idea/

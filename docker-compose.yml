@@ -1,0 +1,14 @@
+# 一键启动 API 服务：docker compose up --build
+# 会自动从项目目录的 .env 文件读 DEEPSEEK_API_KEY（先复制 .env.example 填真实 key）
+
+services:
+  agent-api:
+    build: .
+    container_name: agent-api
+    ports:
+      - "8000:8000"
+    environment:
+      # 从 .env 读 key，密钥不要写死在 compose 文件里
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    # 服务异常退出 / 重启机器后自动拉起；不想要就删掉这两行
+    restart: unless-stopped

@@ -83,6 +83,7 @@ if prompt := st.chat_input("输入问题，比如：帮我算一下 1234 * 5678"
             # st.status：把「思考过程」装进一个可展开的盒子里，边跑边显示
             with st.status("🤖 思考中…", expanded=True) as status:
                 answer = ""
+                usage = {}
                 for ev in run_agent_stream(client, prompt):
                     if ev["type"] == "tool":
                         trace.append({"round": ev["round"], "tool": ev["tool"],
@@ -91,11 +92,20 @@ if prompt := st.chat_input("输入问题，比如：帮我算一下 1234 * 5678"
                             f"🔧 **第 {ev['round']} 轮** · 调用工具 `{ev['tool']}`\n\n"
                             f"参数 `{ev['args']}` → 返回：{ev['result']}"
                         )
-                    else:
+                    elif ev["type"] == "answer":
                         answer = ev["content"]
+                    elif ev["type"] == "usage":
+                        usage = ev
                 status.update(label="✅ 完成", state="complete", expanded=False)
 
             st.write(answer)
+            if usage:
+                st.caption(
+                    f"⏱️ {usage.get('elapsed_ms', 0)}ms · "
+                    f"共 {usage.get('total_tokens', 0)} tokens "
+                    f"（输入 {usage.get('prompt_tokens', 0)} / 输出 {usage.get('completion_tokens', 0)}）· "
+                    f"{usage.get('tool_calls', 0)} 次工具调用"
+                )
 
         st.session_state["messages"].append(
             {"role": "assistant", "content": answer, "trace": trace}

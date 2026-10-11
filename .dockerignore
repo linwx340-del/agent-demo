@@ -1,0 +1,25 @@
+# 以下文件不拷进镜像：既让镜像更小，也避免泄露敏感信息
+
+# ===== 密钥：绝不能进镜像 =====
+# 否则任何人 docker pull 你的镜像都能拿到 key
+key.txt
+.env
+
+# ===== 版本控制 / 本地环境 =====
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+
+# ===== 本地开发文件，API 镜像里用不到 =====
+app.py          # Streamlit 网页版（本地演示用）
+cli.py          # 命令行版
+run_tests.py
+tests/
+README.md
+
+# ===== Docker 相关文件本身 =====
+Dockerfile
+.dockerignore
+docker-compose.yml
