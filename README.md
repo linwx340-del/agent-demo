@@ -25,15 +25,24 @@
 
 ## 本地运行
 
+**方式一：一键启动（推荐）**
+
+Windows 双击 `start.bat`，Linux / macOS 运行 `./start.sh`。脚本会自动：创建 `.env` → 检查/安装依赖 → 让你选「网页版」或「API」。
+
+**方式二：手动**
+
 ```bash
+cp .env.example .env    # 然后打开 .env，把 sk-xxx 换成你的真实 key
 pip install -r requirements.txt
-streamlit run app.py
+streamlit run app.py    # 网页版
+# 或：uvicorn api:app --reload   # API 版
 ```
 
-API Key 二选一（**不要写进代码**）：
+API Key 三选一（**不要写进代码**）：
 
-1. 在同目录建 `key.txt`，第一行放你的 key（已被 .gitignore 忽略）
+1. 复制 `.env.example` 为 `.env`，填 `DEEPSEEK_API_KEY=sk-你的key`（推荐，代码会自动加载）
 2. 或设置环境变量 `DEEPSEEK_API_KEY`
+3. 或旧方式：在同目录建 `key.txt`，第一行放你的 key（已被 .gitignore 忽略）
 
 命令行版：`python cli.py`
 
@@ -151,13 +160,15 @@ docker run -p 8000:8000 -e DEEPSEEK_API_KEY=sk-你的key agent-api
 agent_demo/
 ├── agent/                # 核心包（分层结构）
 │   ├── __init__.py       # 对外统一导出
-│   ├── config.py         # 配置（环境变量 + key.txt 兜底）
+│   ├── config.py         # 配置（环境变量 / .env / key.txt）
 │   ├── tools.py          # 4 个工具 + 注册表 + 工具说明书
 │   ├── core.py           # 手写版函数调用循环（run_agent_stream）
 │   └── langchain_agent.py # LangChain 版（create_react_agent + SQLite 会话记忆）
 ├── cli.py                # 命令行入口
 ├── app.py                # 网页版（Streamlit）
 ├── api.py                # 后端（FastAPI：REST + SSE + 会话接口）
+├── start.bat             # Windows 一键启动（双击）
+├── start.sh              # Linux/macOS 一键启动
 ├── tests/                # 单元测试（19 个）
 ├── Dockerfile            # API 后端镜像定义
 ├── docker-compose.yml    # 一键构建 + 启动

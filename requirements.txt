@@ -9,3 +9,4 @@ langgraph
 sqlalchemy
 greenlet
 aiosqlite
+python-dotenv

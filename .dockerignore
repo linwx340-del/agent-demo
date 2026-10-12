@@ -15,6 +15,8 @@ __pycache__/
 # ===== 本地开发文件，API 镜像里用不到 =====
 app.py          # Streamlit 网页版（本地演示用）
 cli.py          # 命令行版
+start.bat       # Windows 一键启动（本地用）
+start.sh        # Linux/macOS 一键启动（本地用）
 run_tests.py
 tests/
 README.md
