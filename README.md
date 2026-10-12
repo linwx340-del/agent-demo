@@ -11,6 +11,7 @@
 - 思考过程实时可视化：网页端用「思考中」盒子逐步展示 🔧 工具调用轨迹
 - 命令行版 + 网页版共用同一套核心逻辑（`run_agent_stream` 生成器）
 - token 用量统计：每次对话记录输入/输出 token 数、工具调用次数、耗时
+- 两套 Agent 实现：手写版（理解底层）+ LangChain 版（工程化），带 SQLite 会话记忆
 
 ## 技术栈
 
@@ -18,12 +19,14 @@
 - 后端：FastAPI（REST + SSE 流式）
 - 生成：DeepSeek（`deepseek-chat`）
 - 核心机制：OpenAI Function Calling（工具调用循环）
-- 测试：pytest（14 个单测）
+- 编排：LangChain + LangGraph（`create_react_agent`）+ SQLite 会话记忆
+- 测试：19 个单测（`run_tests.py` 一键跑，不依赖 pytest）
+- 部署：Docker + docker-compose
 
 ## 本地运行
 
 ```bash
-pip install openai streamlit
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
@@ -51,15 +54,17 @@ DEEPSEEK_API_KEY = "sk-你的key"
 装依赖后启动后端：
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements-api.txt
 uvicorn api:app --reload
 ```
 
 接口一览：
 
 - `GET  /health`        健康检查
-- `POST /chat`          一次性返回 `{"answer": "...", "trace": [...], "usage": {...}}`
-- `POST /chat/stream`   SSE 流式，边跑边推思考过程
+- `POST /chat`          手写版，一次性返回 `{"answer": "...", "trace": [...], "usage": {...}}`
+- `POST /chat/stream`   手写版 SSE 流式，边跑边推思考过程
+- `POST /chat/langchain`  LangChain 版，带 `session_id` 多轮对话（SQLite 持久化）
+- `DELETE /chat/langchain/{id}`  清空某个会话的历史
 
 请求体示例：
 
@@ -80,6 +85,30 @@ uvicorn api:app --reload
 ```
 
 启动后浏览器打开 `http://127.0.0.1:8000/docs` 可看到自动生成的接口文档。
+
+## LangChain 版（会话记忆）
+
+除了手写版，还提供一套 **LangChain / LangGraph** 实现，并加了**会话记忆**：
+
+| | 手写版 `core.py` | LangChain 版 `langchain_agent.py` |
+|---|---|---|
+| 循环 / 工具调度 | 自己写 | 交给 `create_react_agent` |
+| 作用 | 理解底层原理 | 工程化、省代码 |
+| 会话记忆 | 无（无状态） | 有，SQLite 持久化 |
+
+```bash
+pip install langchain langchain-openai langchain-community langgraph sqlalchemy greenlet aiosqlite
+```
+
+会话记忆说明：同一个 `session_id` 的历史会存进 `chat_history.db`（SQLite），进程/容器重启后依然在。
+
+```json
+{"session_id": "u1", "question": "帮我算 1234 * 5678"}
+```
+
+第二次用同一个 `session_id` 问「那再加 100 呢？」，模型会记得上一轮算出的结果。
+
+面试加分点：能讲清楚「框架替我们省掉了哪些活」——手写版要自己解析 tool_calls、拼消息、算 token，LangChain 版这些都省了。
 
 ## Docker 部署
 
@@ -106,7 +135,7 @@ docker compose down     # 停止并删除容器
 说明：
 
 - **镜像里不含密钥**：key 通过 `.env`（或 `docker run -e DEEPSEEK_API_KEY=...`）注入；`key.txt` 和 `.env` 都被 `.dockerignore` 排除，不会打进镜像。
-- **镜像只装 API 运行时**：Streamlit 网页版和命令行是本地开发工具，不进镜像。
+- **镜像只装 API 运行时**：Streamlit 网页版和命令行是本地开发工具，不进镜像；LangChain 相关依赖已加进 `requirements-api.txt`。
 - `docker-compose.yml` 里 `restart: unless-stopped` 让服务挂了自动重启，不想要可删掉那两行。
 
 不用 compose，纯 docker 命令也可以：
@@ -124,16 +153,18 @@ agent_demo/
 │   ├── __init__.py       # 对外统一导出
 │   ├── config.py         # 配置（环境变量 + key.txt 兜底）
 │   ├── tools.py          # 4 个工具 + 注册表 + 工具说明书
-│   └── core.py           # 函数调用循环（run_agent_stream）
+│   ├── core.py           # 手写版函数调用循环（run_agent_stream）
+│   └── langchain_agent.py # LangChain 版（create_react_agent + SQLite 会话记忆）
 ├── cli.py                # 命令行入口
 ├── app.py                # 网页版（Streamlit）
-├── api.py                # 后端（FastAPI：REST + SSE）
-├── tests/                # 单元测试（pytest，14 个）
+├── api.py                # 后端（FastAPI：REST + SSE + 会话接口）
+├── tests/                # 单元测试（19 个）
 ├── Dockerfile            # API 后端镜像定义
 ├── docker-compose.yml    # 一键构建 + 启动
 ├── .dockerignore         # 不打进镜像的文件（含 key.txt / .env）
 ├── .env.example          # 密钥模板（复制成 .env 填真实 key）
-├── requirements.txt      # 运行依赖
+├── requirements.txt      # 本地运行依赖
+├── requirements-api.txt  # 镜像内依赖（openai/fastapi/uvicorn/langchain 等）
 ├── requirements-dev.txt  # 测试依赖
-└── .gitignore            # 忽略 key.txt / .env / venv 等
+└── .gitignore            # 忽略 key.txt / .env / venv / chat_history.db 等
 ```

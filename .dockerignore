@@ -23,3 +23,5 @@ README.md
 Dockerfile
 .dockerignore
 docker-compose.yml
+chat_history.db
+*.db

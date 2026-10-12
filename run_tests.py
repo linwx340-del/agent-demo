@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-MODULES = ["tests.test_tools", "tests.test_core"]
+MODULES = ["tests.test_tools", "tests.test_core", "tests.test_langchain"]
 
 
 def main():

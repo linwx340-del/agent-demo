@@ -7,6 +7,7 @@
     DEEPSEEK_MODEL      可选，默认 deepseek-chat
     AGENT_MAX_ROUNDS    可选，工具调用最大轮数，默认 6
     DEEPSEEK_TIMEOUT    可选，请求超时秒数，默认 60
+    CHAT_HISTORY_DB     可选，会话历史 SQLite 文件路径，默认项目根目录 chat_history.db
 """
 import os
 import logging
@@ -32,6 +33,9 @@ BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 MAX_ROUNDS = int(os.getenv("AGENT_MAX_ROUNDS", "6"))
 TIMEOUT = float(os.getenv("DEEPSEEK_TIMEOUT", "60"))
+
+# 会话历史数据库（阶段 4：LangChain 会话记忆用 SQLite 持久化）
+CHAT_HISTORY_DB = os.getenv("CHAT_HISTORY_DB", os.path.join(BASE_DIR, "chat_history.db"))
 
 
 def setup_logging(level: int = logging.INFO) -> None:

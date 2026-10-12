@@ -1,3 +1,10 @@
 openai
 fastapi
 uvicorn
+langchain
+langchain-openai
+langchain-community
+langgraph
+sqlalchemy
+greenlet
+aiosqlite
