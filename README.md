@@ -2,7 +2,37 @@
 
 一个基于 **DeepSeek 函数调用（Function Calling）** 的多工具智能体：给大模型配上 4 个工具，它会自己判断「要不要调工具、调哪个、传什么参数」，**思考过程全程可见**，不是黑盒。
 
-与 RAG 的区别：RAG = 大模型 + 知识库（检索文档回答）；Agent = 大模型 + 工具（模型自主决定调用）。
+> **一句话看懂**：Agent = 大模型 + 工具（模型自主决策调用）。与 RAG（大模型 + 知识库，检索文档回答）互补，是大模型落地的两大核心范式之一。
+
+## 这个项目证明什么（面向面试官）
+
+- 懂 Agent 的**底层机制**：不是只会调 `langchain`，而是手写了一个完整的 Function Calling 循环（管理 messages、解析 tool_calls、执行工具、回填结果、统计 token）。
+- 也懂**工程化**：LangChain / LangGraph 版 + SQLite 会话记忆 + FastAPI + Docker + 19 个单元测试。
+- 能讲清「**框架替我们省掉了哪些活**」——这是 Agent 面试最高频、最能区分背题和真懂的问题。
+
+## 核心架构
+
+```mermaid
+flowchart LR
+    Q["用户提问"] --> S["run_agent_stream<br/>ReAct 循环"]
+    S --> M["DeepSeek<br/>判断 tool_calls"]
+    M -- "要调工具" --> T["执行工具<br/>calculate / time / dice / password"]
+    T -->|"结果回填 messages"| M
+    M -- "不需要" --> A["输出最终答案"]
+    S --> U["usage 统计<br/>token / 调用次数 / 耗时"]
+    H[("会话历史<br/>SQLite")] -.LangChain 版多轮记忆.-> M
+```
+
+模型每次返回要么是工具调用、要么是最终答案：要调工具就执行并把结果回填进 `messages` 再问模型，直到模型给出答案——这就是 Agent 的「思考 → 行动 → 观察」循环。虚线部分是 LangChain 版额外加上的多轮会话记忆。
+
+## 技术亮点 / 设计说明
+
+- **手写 Function Calling 循环**：`core.py` 自己管理 `messages`、解析 `tool_calls`、逐个执行工具、把结果回填、累加 token 用量——彻底理解 Agent 底层在干什么，面试时能讲清每一步。
+- **LangChain / LangGraph 对照实现**：`langchain_agent.py` 用 `create_react_agent` + `SQLChatMessageHistory`，把循环和工具调度交给框架，自己只做三件事：定义工具、配模型、管会话记忆。两套实现并排，正好回答「框架替我们省了哪些活」。
+- **工具安全**：`calculate` 用 `ast` 白名单校验（只允许数字、四则运算、括号、% 等节点）+ `eval` 空 `__builtins__`，杜绝 `__import__('os').system(...)` 这类任意代码执行。
+- **可测试设计**：`run_agent_stream` 的模型 client 由调用方注入（不内部 import openai），单测时 mock 一个假 client 即可；纯逻辑函数（`build_prompt`、`_extract_answer`、`_extract_trace` 等）不依赖 openai / langchain，可脱离重库单测。langchain 相关 import 全部惰性——没装 langchain 时模块仍可 import、服务能优雅降级。
+- **token 用量统计**：每次对话记录输入/输出 token、工具调用次数、耗时，方便评估成本和排查。
+- **19 个单元测试**：`run_tests.py` 一键跑（不依赖 pytest），覆盖手写版循环、LangChain 版、工具安全边界、API。
 
 ## 功能特性
 
@@ -179,3 +209,15 @@ agent_demo/
 ├── requirements-dev.txt  # 测试依赖
 └── .gitignore            # 忽略 key.txt / .env / venv / chat_history.db 等
 ```
+
+## 效果截图
+
+建议准备 3 张截图放到仓库根目录：
+
+1. `screenshot.png` — 网页对话页：展示「思考中」盒子里的工具调用轨迹（例如「帮我算 1234 * 5678」时先调 calculate 工具）
+2. `screenshot-api.png` — FastAPI 接口文档页（`http://127.0.0.1:8000/docs`）
+3. `screenshot-multiround.png` — LangChain 版多轮对话演示（第二轮追问「那再加 100 呢？」能接着上一轮结果）
+
+当前仓库还没有截图，建议在本地跑起来后截取：
+
+![界面截图](screenshot.png)
